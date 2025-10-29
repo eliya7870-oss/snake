@@ -6,7 +6,13 @@ import { useEffect, useRef, useState } from "react";
 function GameBoard() {
   const [board, setBoard] = useAtom(gameboardAtom);
   const [direction, setDirection] = useState<string>("left");
+  const [score, setScore] = useState(0);
   const directionRef = useRef(direction);
+  const snake = useRef([
+    [10, 10],
+    [10, 11],
+    [10, 12],
+  ]);
   const updateCell = (row: number, col: number, value: string) => {
     setBoard((prevBoard) =>
       prevBoard.map((r, rowIndex) =>
@@ -16,50 +22,44 @@ function GameBoard() {
       )
     );
   };
-  const gameTick = () => {
-    setBoard((prevBoard) => {
-      let snakerow = 10;
-      let snakecol = 10;
-
-      for (let row = 0; row < prevBoard.length; row++) {
-        for (let col = 0; col < prevBoard[row].length; col++) {
-          if (
-            ["up", "down", "left", "right"].includes(
-              prevBoard[row][col] as string
-            )
-          ) {
-            snakerow = row;
-            snakecol = col;
-          }
-        }
+  const move = () => {
+    const tmpBoard = board.map((r) => [...r]);
+    let tmp = snake.current[0];
+    switch (directionRef.current) {
+      case "up":
+        tmpBoard[tmp[0]][tmp[1]] = "";
+        tmpBoard[tmp[0] - 1][tmp[1]] = "up";
+        snake.current[0] = [snake.current[0][0] - 1, snake.current[0][1]];
+        break;
+      case "down":
+        tmpBoard[tmp[0]][tmp[1]] = "";
+        tmpBoard[tmp[0] + 1][tmp[1]] = "down";
+        snake.current[0] = [snake.current[0][0] + 1, snake.current[0][1]];
+        break;
+      case "left":
+        tmpBoard[tmp[0]][tmp[1]] = "";
+        tmpBoard[tmp[0]][tmp[1] - 1] = "left";
+        snake.current[0] = [snake.current[0][0], snake.current[0][1] - 1];
+        break;
+      case "right":
+        tmpBoard[tmp[0]][tmp[1]] = "";
+        tmpBoard[tmp[0]][tmp[1] + 1] = "right";
+        snake.current[0] = [snake.current[0][0], snake.current[0][1] + 1];
+        break;
+    }
+    snake.current = snake.current.map((node, index) => {
+      console.log(node);
+      if (index == 0) {
+        return node;
       }
+      tmpBoard[node[0]][node[1]] = "";
+      [node, tmp] = [tmp, node];
+      tmpBoard[node[0]][node[1]] = "body";
 
-      const newBoard = prevBoard.map((r) => [...r]);
-      const currentDirection = directionRef.current; // always latest
-
-      switch (currentDirection) {
-        case "up":
-          newBoard[snakerow][snakecol] = "";
-          newBoard[snakerow - 1][snakecol] = "up";
-          break;
-        case "down":
-          newBoard[snakerow][snakecol] = "";
-          newBoard[snakerow + 1][snakecol] = "down";
-          break;
-        case "left":
-          newBoard[snakerow][snakecol] = "";
-          newBoard[snakerow][snakecol - 1] = "left";
-          break;
-        case "right":
-          newBoard[snakerow][snakecol] = "";
-          newBoard[snakerow][snakecol + 1] = "right";
-          break;
-      }
-
-      return newBoard;
+      return node;
     });
+    setBoard(tmpBoard);
   };
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
@@ -77,11 +77,12 @@ function GameBoard() {
           break;
       }
     };
-
-    updateCell(10, 10, "right");
+    updateCell(snake.current[0][0], snake.current[0][1], "right");
+    updateCell(snake.current[1][0], snake.current[1][1], "body");
+    updateCell(snake.current[2][0], snake.current[2][1], "body");
     const intervalId = setInterval(() => {
-      gameTick();
-    }, 300);
+      move();
+    }, 500);
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
@@ -101,6 +102,8 @@ function GameBoard() {
             cell == "up" ||
             cell == "down" ? (
               <div className="head"></div>
+            ) : cell == "body" ? (
+              <div className="body"></div>
             ) : (
               <div
                 className="cell"
