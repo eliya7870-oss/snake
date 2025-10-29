@@ -2,6 +2,7 @@ import "./GameBoard.css";
 import { useAtom } from "jotai";
 import { gameboardAtom } from "../../store/atoms";
 import { useEffect, useRef, useState } from "react";
+import { GAMEBOARD_SIZE } from "../../utils/constants";
 
 function GameBoard() {
   const [board, setBoard] = useAtom(gameboardAtom);
@@ -60,41 +61,44 @@ function GameBoard() {
     });
     setBoard(tmpBoard);
   };
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case "ArrowUp":
-          setDirection("up");
-          break;
-        case "ArrowDown":
-          setDirection("down");
-          break;
-        case "ArrowLeft":
-          setDirection("left");
-          break;
-        case "ArrowRight":
-          setDirection("right");
-          break;
-      }
-    };
-    updateCell(snake.current[0][0], snake.current[0][1], "right");
-    updateCell(snake.current[1][0], snake.current[1][1], "body");
-    updateCell(snake.current[2][0], snake.current[2][1], "body");
-    const intervalId = setInterval(() => {
-      move();
-    }, 500);
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      clearInterval(intervalId);
-    };
-  }, []);
-  useEffect(() => {
-    directionRef.current = direction; // keep ref updated
-  }, [direction]);
+  // useEffect(() => {
+  //   const handleKeyDown = (e: KeyboardEvent) => {
+  //     switch (e.key) {
+  //       case "ArrowUp":
+  //         setDirection("up");
+  //         break;
+  //       case "ArrowDown":
+  //         setDirection("down");
+  //         break;
+  //       case "ArrowLeft":
+  //         setDirection("left");
+  //         break;
+  //       case "ArrowRight":
+  //         setDirection("right");
+  //         break;
+  //     }
+  //   };
+  //   updateCell(snake.current[0][0], snake.current[0][1], "right");
+  //   updateCell(snake.current[1][0], snake.current[1][1], "body");
+  //   updateCell(snake.current[2][0], snake.current[2][1], "body");
+  //   const intervalId = setInterval(() => {
+  //     move();
+  //   }, 500);
+  //   window.addEventListener("keydown", handleKeyDown);
+  //   return () => {
+  //     window.removeEventListener("keydown", handleKeyDown);
+  //     clearInterval(intervalId);
+  //   };
+  // }, []);
+  // useEffect(() => {
+  //   directionRef.current = direction; // keep ref updated
+  // }, [direction]);
   return (
     <>
-      <div className="game-board">
+      <div
+        className="game-board"
+        style={{ "--board-size": GAMEBOARD_SIZE } as React.CSSProperties}
+      >
         {board.map((row, rowIndex) =>
           row.map((cell, cellIndex) =>
             cell == "right" ||

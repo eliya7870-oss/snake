@@ -1,5 +1,6 @@
 import { atom } from "jotai";
+import { GAMEBOARD_SIZE } from "../utils/constants";
 
 export const gameboardAtom = atom<(string | number)[][]>(
-  Array.from({ length: 20 }, () => Array(20).fill(""))
+  Array.from({ length: GAMEBOARD_SIZE }, () => Array(GAMEBOARD_SIZE).fill(""))
 );

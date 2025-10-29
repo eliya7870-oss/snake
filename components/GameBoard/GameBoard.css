@@ -3,8 +3,8 @@
   height: 1000px;
   border: 1px solid black;
   display: grid;
-  grid-template-columns: repeat(20, 1fr);
-  grid-template-rows: repeat(20, 1fr);
+  grid-template-columns: repeat(var(--board-size), 1fr);
+  grid-template-rows: repeat(var(--board-size), 1fr);
 }
 .cell {
   height: 100%;
