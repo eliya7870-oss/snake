@@ -18,27 +18,46 @@ function GameBoard() {
     [10, 12],
   ]);
   const snakeRef = useRef(snake);
-  const generatefruitcoords = () => {
-    while (true) {
+
+  // Function to generate fruit coordinates, avoiding the snake
+  const generatefruitcoords = (currentSnake: number[][]) => {
+    let attempts = 0;
+    const maxAttempts = 1000; // Prevent infinite loop
+
+    while (attempts < maxAttempts) {
       const coord = [random(GAMEBOARD_SIZE), random(GAMEBOARD_SIZE)];
-      if (
-        !snakeRef.current.some(([x, y]) => x === coord[0] && y === coord[1])
-      ) {
+      const isOnSnake = currentSnake.some(
+        ([x, y]) => x === coord[0] && y === coord[1]
+      );
+
+      if (!isOnSnake) {
+        console.log(coord);
         return coord;
       }
+      attempts++;
     }
+
+    // Fallback: find any empty cell
+    for (let row = 0; row < GAMEBOARD_SIZE; row++) {
+      for (let col = 0; col < GAMEBOARD_SIZE; col++) {
+        if (!currentSnake.some(([x, y]) => x === row && y === col)) {
+          return [row, col];
+        }
+      }
+    }
+
+    // Should never reach here unless board is full
+    return [0, 0];
   };
-  const [fruit, setFruit] = useState<number[]>(generatefruitcoords());
+
+  const [fruit, setFruit] = useState<number[]>(() =>
+    generatefruitcoords([
+      [10, 10],
+      [10, 11],
+      [10, 12],
+    ])
+  );
   const fruitRef = useRef(fruit);
-  const updateCell = (row: number, col: number, value: string) => {
-    setBoard((prevBoard) =>
-      prevBoard.map((r, rowIndex) =>
-        rowIndex === row
-          ? r.map((cell, colIndex) => (colIndex === col ? value : cell))
-          : r
-      )
-    );
-  };
 
   const move = () => {
     const head = snakeRef.current[0];
@@ -58,6 +77,8 @@ function GameBoard() {
         newHead[1]++;
         break;
     }
+
+    // Wall collision
     if (
       newHead[0] < 0 ||
       newHead[0] >= GAMEBOARD_SIZE ||
@@ -68,36 +89,62 @@ function GameBoard() {
       return;
     }
 
-    let newSnake = [];
+    // Self collision
     if (
-      newHead[0] === fruitRef.current[0] &&
-      newHead[1] === fruitRef.current[1]
+      snakeRef.current.some(([x, y]) => x === newHead[0] && y === newHead[1])
     ) {
-      setScore((prev) => prev + 1);
-      setFruit(generatefruitcoords());
+      setGameOver(true);
+      return;
+    }
+
+    // Check if fruit is eaten
+    const fruitEaten =
+      newHead[0] === fruitRef.current[0] && newHead[1] === fruitRef.current[1];
+
+    let newSnake: number[][];
+    if (fruitEaten) {
+      // Grow snake by keeping tail
       newSnake = [newHead, ...snakeRef.current];
+      setScore((prev) => prev + 1);
+
+      // Generate new fruit position that avoids the NEW snake
+      const newFruitCoord = generatefruitcoords(newSnake);
+
+      // CRITICAL: Update ref immediately to prevent race condition
+      fruitRef.current = newFruitCoord;
+      setFruit(newFruitCoord);
     } else {
+      // Move snake by removing tail
       newSnake = [newHead, ...snakeRef.current.slice(0, -1)];
     }
-    console.log(newSnake);
-    setSnake(newSnake);
 
-    console.log(`fruit: ${fruit}`);
+    // Update snake ref immediately as well
+    snakeRef.current = newSnake;
+    setSnake(newSnake);
   };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
         case "ArrowUp":
-          setDirection("up");
+          if (directionRef.current !== "down") {
+            setDirection("up");
+          }
           break;
         case "ArrowDown":
-          setDirection("down");
+          if (directionRef.current !== "up") {
+            setDirection("down");
+          }
           break;
         case "ArrowLeft":
-          setDirection("left");
+          if (directionRef.current !== "right") {
+            setDirection("left");
+          }
           break;
         case "ArrowRight":
-          setDirection("right");
+          if (directionRef.current !== "left") {
+            setDirection("right");
+          }
           break;
       }
     };
@@ -105,20 +152,31 @@ function GameBoard() {
     const intervalId = setInterval(() => {
       move();
     }, 250);
+
     window.addEventListener("keydown", handleKeyDown);
+
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       clearInterval(intervalId);
     };
   }, []);
+
   useEffect(() => {
-    directionRef.current = direction; // keep ref updated
+    directionRef.current = direction;
+  }, [direction]);
+
+  useEffect(() => {
     snakeRef.current = snake;
+  }, [snake]);
+
+  useEffect(() => {
     fruitRef.current = fruit;
-  }, [direction, snake, snake]);
+  }, [fruit]);
+
   return gameOver ? (
     <>
-      gameover!!<h1>score:{score}</h1>
+      <h1>Game Over!</h1>
+      <h2>Score: {score}</h2>
     </>
   ) : (
     <>
@@ -134,17 +192,19 @@ function GameBoard() {
             const snakeIndex = snake.findIndex(
               ([sr, sc]) => sr === rowIndex && sc === cellIndex
             );
+
             return snakeIndex === 0 ? (
-              <div className="head"></div>
+              <div key={`${rowIndex}-${cellIndex}`} className="head"></div>
             ) : snakeIndex > 0 ? (
-              <div className="body"></div>
+              <div key={`${rowIndex}-${cellIndex}`} className="body"></div>
             ) : isFruit ? (
-              <div className="fruit"></div>
+              <div key={`${rowIndex}-${cellIndex}`} className="fruit"></div>
             ) : (
               <div
+                key={`${rowIndex}-${cellIndex}`}
                 className="cell"
                 style={
-                  (rowIndex + cellIndex) % 2 == 0
+                  (rowIndex + cellIndex) % 2 === 0
                     ? { backgroundColor: "gray" }
                     : { backgroundColor: "white" }
                 }
@@ -154,9 +214,10 @@ function GameBoard() {
         )}
       </div>
       <p>
-        {direction} score:{score}
+        Direction: {direction} | Score: {score}
       </p>
     </>
   );
 }
+
 export default GameBoard;
