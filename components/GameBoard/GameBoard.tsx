@@ -11,11 +11,25 @@ function GameBoard() {
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [score, setScore] = useState(0);
   const directionRef = useRef(direction);
-  const snake = useRef([
+
+  const [snake, setSnake] = useState([
     [10, 10],
     [10, 11],
     [10, 12],
   ]);
+  const snakeRef = useRef(snake);
+  const generatefruitcoords = () => {
+    while (true) {
+      const coord = [random(GAMEBOARD_SIZE), random(GAMEBOARD_SIZE)];
+      if (
+        !snakeRef.current.some(([x, y]) => x === coord[0] && y === coord[1])
+      ) {
+        return coord;
+      }
+    }
+  };
+  const [fruit, setFruit] = useState<number[]>(generatefruitcoords());
+  const fruitRef = useRef(fruit);
   const updateCell = (row: number, col: number, value: string) => {
     setBoard((prevBoard) =>
       prevBoard.map((r, rowIndex) =>
@@ -25,72 +39,50 @@ function GameBoard() {
       )
     );
   };
-  const generatefruitcoords = () => {
-    while (true) {
-      const coord = [random(GAMEBOARD_SIZE), random(GAMEBOARD_SIZE)];
-      if (!snake.current.some(([x, y]) => x === coord[0] && y === coord[1])) {
-        return coord;
-      }
-    }
-  };
+
   const move = () => {
-    const tmpBoard = board.map((r) => [...r]);
-    let tmp = snake.current[0];
-    // console.log(`fruit:${generatefruitcoords()}`);
+    const head = snakeRef.current[0];
+    let newHead = [...head];
+
     switch (directionRef.current) {
       case "up":
-        if (tmp[0] <= 0) {
-          setGameOver(true);
-          break;
-        }
-        tmpBoard[tmp[0]][tmp[1]] = "";
-        if (tmpBoard[tmp[0] - 1][tmp[1]] == "fruit") {
-          const [a, b] = generatefruitcoords();
-          tmpBoard[a][b] = "fruit";
-        }
-        tmpBoard[tmp[0] - 1][tmp[1]] = "up";
-        snake.current[0] = [snake.current[0][0] - 1, snake.current[0][1]];
+        newHead[0]--;
         break;
       case "down":
-        if (tmp[0] >= GAMEBOARD_SIZE - 1) {
-          setGameOver(true);
-          break;
-        }
-        tmpBoard[tmp[0]][tmp[1]] = "";
-        tmpBoard[tmp[0] + 1][tmp[1]] = "down";
-        snake.current[0] = [snake.current[0][0] + 1, snake.current[0][1]];
+        newHead[0]++;
         break;
       case "left":
-        if (tmp[1] <= 0) {
-          setGameOver(true);
-          break;
-        }
-        tmpBoard[tmp[0]][tmp[1]] = "";
-        tmpBoard[tmp[0]][tmp[1] - 1] = "left";
-        snake.current[0] = [snake.current[0][0], snake.current[0][1] - 1];
+        newHead[1]--;
         break;
       case "right":
-        if (tmp[1] >= GAMEBOARD_SIZE - 1) {
-          setGameOver(true);
-          break;
-        }
-        tmpBoard[tmp[0]][tmp[1]] = "";
-        tmpBoard[tmp[0]][tmp[1] + 1] = "right";
-        snake.current[0] = [snake.current[0][0], snake.current[0][1] + 1];
+        newHead[1]++;
         break;
     }
-    snake.current = snake.current.map((node, index) => {
-      console.log(node);
-      if (index == 0) {
-        return node;
-      }
-      tmpBoard[node[0]][node[1]] = "";
-      [node, tmp] = [tmp, node];
-      tmpBoard[node[0]][node[1]] = "body";
+    if (
+      newHead[0] < 0 ||
+      newHead[0] >= GAMEBOARD_SIZE ||
+      newHead[1] < 0 ||
+      newHead[1] >= GAMEBOARD_SIZE
+    ) {
+      setGameOver(true);
+      return;
+    }
 
-      return node;
-    });
-    setBoard(tmpBoard);
+    let newSnake = [];
+    if (
+      newHead[0] === fruitRef.current[0] &&
+      newHead[1] === fruitRef.current[1]
+    ) {
+      setScore((prev) => prev + 1);
+      setFruit(generatefruitcoords());
+      newSnake = [newHead, ...snakeRef.current];
+    } else {
+      newSnake = [newHead, ...snakeRef.current.slice(0, -1)];
+    }
+    console.log(newSnake);
+    setSnake(newSnake);
+
+    console.log(`fruit: ${fruit}`);
   };
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -109,14 +101,10 @@ function GameBoard() {
           break;
       }
     };
-    // updateCell(snake.current[0][0], snake.current[0][1], "right");
-    // updateCell(snake.current[1][0], snake.current[1][1], "body");
-    // updateCell(snake.current[2][0], snake.current[2][1], "body");
-    const [a, b] = generatefruitcoords();
-    updateCell(a, b, "fruit");
+
     const intervalId = setInterval(() => {
       move();
-    }, 500);
+    }, 250);
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
@@ -125,7 +113,9 @@ function GameBoard() {
   }, []);
   useEffect(() => {
     directionRef.current = direction; // keep ref updated
-  }, [direction]);
+    snakeRef.current = snake;
+    fruitRef.current = fruit;
+  }, [direction, snake, snake]);
   return gameOver ? (
     <>
       gameover!!<h1>score:{score}</h1>
@@ -137,15 +127,18 @@ function GameBoard() {
         style={{ "--board-size": GAMEBOARD_SIZE } as React.CSSProperties}
       >
         {board.map((row, rowIndex) =>
-          row.map((cell, cellIndex) =>
-            cell == "right" ||
-            cell == "left" ||
-            cell == "up" ||
-            cell == "down" ? (
+          row.map((_, cellIndex) => {
+            const isFruit =
+              fruitRef.current[0] === rowIndex &&
+              fruitRef.current[1] === cellIndex;
+            const snakeIndex = snake.findIndex(
+              ([sr, sc]) => sr === rowIndex && sc === cellIndex
+            );
+            return snakeIndex === 0 ? (
               <div className="head"></div>
-            ) : cell == "body" ? (
+            ) : snakeIndex > 0 ? (
               <div className="body"></div>
-            ) : cell == "fruit" ? (
+            ) : isFruit ? (
               <div className="fruit"></div>
             ) : (
               <div
@@ -156,8 +149,8 @@ function GameBoard() {
                     : { backgroundColor: "white" }
                 }
               ></div>
-            )
-          )
+            );
+          })
         )}
       </div>
       <p>
