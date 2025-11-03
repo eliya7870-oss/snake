@@ -11,6 +11,7 @@ function GameBoard() {
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [score, setScore] = useState(0);
   const directionRef = useRef(direction);
+  const intervalRef = useRef<number | undefined>(undefined);
 
   const [snake, setSnake] = useState([
     [10, 10],
@@ -86,6 +87,7 @@ function GameBoard() {
       newHead[1] >= GAMEBOARD_SIZE
     ) {
       setGameOver(true);
+      clearInterval(intervalRef.current);
       return;
     }
 
@@ -94,6 +96,7 @@ function GameBoard() {
       snakeRef.current.some(([x, y]) => x === newHead[0] && y === newHead[1])
     ) {
       setGameOver(true);
+      clearInterval(intervalRef.current);
       return;
     }
 
@@ -149,15 +152,15 @@ function GameBoard() {
       }
     };
 
-    const intervalId = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       move();
-    }, 250);
+    }, 150);
 
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      clearInterval(intervalId);
+      clearInterval(intervalRef.current);
     };
   }, []);
 
@@ -173,17 +176,36 @@ function GameBoard() {
     fruitRef.current = fruit;
   }, [fruit]);
 
-  return gameOver ? (
-    <>
-      <h1>Game Over!</h1>
-      <h2>Score: {score}</h2>
-    </>
-  ) : (
+  return (
     <>
       <div
         className="game-board"
         style={{ "--board-size": GAMEBOARD_SIZE } as React.CSSProperties}
       >
+        {gameOver && (
+          <div className="gameover-overlay">
+            <h1 className="gameover-title">game over</h1>
+            <p className="gameover-score">score:{score}</p>
+            <button
+              className="gameover-button"
+              onClick={() => {
+                setGameOver(false);
+                setScore(0);
+                setSnake([
+                  [10, 10],
+                  [10, 11],
+                  [10, 12],
+                ]);
+
+                intervalRef.current = intervalRef.current = setInterval(() => {
+                  move();
+                }, 150);
+              }}
+            >
+              try again
+            </button>
+          </div>
+        )}
         {board.map((row, rowIndex) =>
           row.map((_, cellIndex) => {
             const isFruit =
@@ -205,7 +227,7 @@ function GameBoard() {
                 className="cell"
                 style={
                   (rowIndex + cellIndex) % 2 === 0
-                    ? { backgroundColor: "gray" }
+                    ? { backgroundColor: "#adb5bd" }
                     : { backgroundColor: "white" }
                 }
               ></div>
@@ -213,9 +235,6 @@ function GameBoard() {
           })
         )}
       </div>
-      <p>
-        Direction: {direction} | Score: {score}
-      </p>
     </>
   );
 }
