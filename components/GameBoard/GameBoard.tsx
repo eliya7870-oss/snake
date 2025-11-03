@@ -3,7 +3,10 @@ import { useAtom } from "jotai";
 import { gameboardAtom } from "../../store/atoms";
 import { useEffect, useRef, useState } from "react";
 import { GAMEBOARD_SIZE } from "../../utils/constants";
-import { random } from "../../functions/functions";
+import {
+  generatefruitcoords,
+  getGreenGradient,
+} from "../../functions/functions";
 
 function GameBoard() {
   const [board, setBoard] = useAtom(gameboardAtom);
@@ -12,45 +15,12 @@ function GameBoard() {
   const [score, setScore] = useState(0);
   const directionRef = useRef(direction);
   const intervalRef = useRef<number | undefined>(undefined);
-
   const [snake, setSnake] = useState([
     [10, 10],
     [10, 11],
     [10, 12],
   ]);
   const snakeRef = useRef(snake);
-
-  // Function to generate fruit coordinates, avoiding the snake
-  const generatefruitcoords = (currentSnake: number[][]) => {
-    let attempts = 0;
-    const maxAttempts = 1000; // Prevent infinite loop
-
-    while (attempts < maxAttempts) {
-      const coord = [random(GAMEBOARD_SIZE), random(GAMEBOARD_SIZE)];
-      const isOnSnake = currentSnake.some(
-        ([x, y]) => x === coord[0] && y === coord[1]
-      );
-
-      if (!isOnSnake) {
-        console.log(coord);
-        return coord;
-      }
-      attempts++;
-    }
-
-    // Fallback: find any empty cell
-    for (let row = 0; row < GAMEBOARD_SIZE; row++) {
-      for (let col = 0; col < GAMEBOARD_SIZE; col++) {
-        if (!currentSnake.some(([x, y]) => x === row && y === col)) {
-          return [row, col];
-        }
-      }
-    }
-
-    // Should never reach here unless board is full
-    return [0, 0];
-  };
-
   const [fruit, setFruit] = useState<number[]>(() =>
     generatefruitcoords([
       [10, 10],
@@ -59,10 +29,16 @@ function GameBoard() {
     ])
   );
   const fruitRef = useRef(fruit);
+  const directionQueueRef = useRef<string[]>([]);
 
   const move = () => {
     const head = snakeRef.current[0];
     let newHead = [...head];
+    if (directionQueueRef.current.length > 0) {
+      const nextDirection = directionQueueRef.current.shift()!;
+      directionRef.current = nextDirection;
+      setDirection(nextDirection);
+    }
 
     switch (directionRef.current) {
       case "up":
@@ -128,28 +104,54 @@ function GameBoard() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const currentDir =
+        directionQueueRef.current.length > 0
+          ? directionQueueRef.current[directionQueueRef.current.length - 1]
+          : directionRef.current;
+
+      let newDirection: string | null = null;
+
       switch (e.key) {
         case "ArrowUp":
-          if (directionRef.current !== "down") {
-            setDirection("up");
-          }
+          if (currentDir !== "down") newDirection = "up";
           break;
         case "ArrowDown":
-          if (directionRef.current !== "up") {
-            setDirection("down");
-          }
+          if (currentDir !== "up") newDirection = "down";
           break;
         case "ArrowLeft":
-          if (directionRef.current !== "right") {
-            setDirection("left");
-          }
+          if (currentDir !== "right") newDirection = "left";
           break;
         case "ArrowRight":
-          if (directionRef.current !== "left") {
-            setDirection("right");
-          }
+          if (currentDir !== "left") newDirection = "right";
           break;
       }
+
+      // Only queue if it's a valid direction and queue isn't too long
+      if (newDirection && directionQueueRef.current.length < 2) {
+        directionQueueRef.current.push(newDirection);
+      }
+      // switch (e.key) {
+      //   case "ArrowUp":
+      //     if (directionRef.current !== "down") {
+      //       setDirection("up");
+      //     }
+      //     break;
+      //   case "ArrowDown":
+      //     if (directionRef.current !== "up") {
+      //       setDirection("down");
+      //     }
+      //     break;
+      //   case "ArrowLeft":
+      //     if (directionRef.current !== "right") {
+      //       setDirection("left");
+      //     }
+      //     break;
+      //   case "ArrowRight":
+      //     if (directionRef.current !== "left") {
+      //       setDirection("right");
+      //     }
+      //     break;
+      // }
     };
 
     intervalRef.current = setInterval(() => {
@@ -218,7 +220,11 @@ function GameBoard() {
             return snakeIndex === 0 ? (
               <div key={`${rowIndex}-${cellIndex}`} className="head"></div>
             ) : snakeIndex > 0 ? (
-              <div key={`${rowIndex}-${cellIndex}`} className="body"></div>
+              <div
+                key={`${rowIndex}-${cellIndex}`}
+                className="body"
+                style={{ backgroundColor: getGreenGradient(snakeIndex) }}
+              ></div>
             ) : isFruit ? (
               <div key={`${rowIndex}-${cellIndex}`} className="fruit"></div>
             ) : (
