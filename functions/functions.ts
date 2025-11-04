@@ -6,11 +6,10 @@ export function random(x: number) {
 }
 
 export function getGreenGradient(value: number): string {
-  // Clamp value between 1 and 100
+  // ensure value between 1 and 100
   const v = Math.max(1, Math.min(100, value));
-
-  // HSL: hue = 120 (green), saturation = 100%, lightness = 20% (dark) -> 80% (light)
-  const lightness = 20 + (v - 1) * (60 / 99); // maps 1-100 to 20%-80%
+  // maps 1-100 to 20%-80%
+  const lightness = 20 + (v - 1) * (60 / 99);
 
   return `hsl(120, 100%, ${lightness}%)`;
 }
@@ -26,7 +25,6 @@ export const generatefruitcoords = (currentSnake: number[][]) => {
     );
 
     if (!isOnSnake) {
-      console.log(coord);
       return coord;
     }
     attempts++;

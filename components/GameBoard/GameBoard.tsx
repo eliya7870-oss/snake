@@ -1,6 +1,6 @@
 import "./GameBoard.css";
 import { useAtom } from "jotai";
-import { gameboardAtom } from "../../store/atoms";
+import { gameboardAtom, scoreAtom } from "../../store/atoms";
 import { useEffect, useRef, useState } from "react";
 import { GAMEBOARD_SIZE } from "../../utils/constants";
 import {
@@ -9,11 +9,12 @@ import {
 } from "../../functions/functions";
 
 function GameBoard() {
-  const [board, setBoard] = useAtom(gameboardAtom);
+  const [board] = useAtom(gameboardAtom);
   const [direction, setDirection] = useState<string>("left");
   const [gameOver, setGameOver] = useState<boolean>(false);
-  const [score, setScore] = useState(0);
+  const [score, setScore] = useAtom(scoreAtom);
   const directionRef = useRef(direction);
+  const directionQueueRef = useRef<string[]>([]);
   const intervalRef = useRef<number | undefined>(undefined);
   const [snake, setSnake] = useState([
     [10, 10],
@@ -22,20 +23,17 @@ function GameBoard() {
   ]);
   const snakeRef = useRef(snake);
   const [fruit, setFruit] = useState<number[]>(() =>
-    generatefruitcoords([
-      [10, 10],
-      [10, 11],
-      [10, 12],
-    ])
+    generatefruitcoords(snakeRef.current)
   );
   const fruitRef = useRef(fruit);
-  const directionQueueRef = useRef<string[]>([]);
 
   const move = () => {
     const head = snakeRef.current[0];
     let newHead = [...head];
+    console.log(directionQueueRef.current);
     if (directionQueueRef.current.length > 0) {
       const nextDirection = directionQueueRef.current.shift()!;
+      console.log(nextDirection);
       directionRef.current = nextDirection;
       setDirection(nextDirection);
     }
@@ -84,7 +82,11 @@ function GameBoard() {
     if (fruitEaten) {
       // Grow snake by keeping tail
       newSnake = [newHead, ...snakeRef.current];
-      setScore((prev) => prev + 1);
+      setScore((prev) =>
+        prev.score >= prev.highscore
+          ? { highscore: prev.score + 1, score: prev.score + 1 }
+          : { ...prev, score: prev.score + 1 }
+      );
 
       // Generate new fruit position that avoids the NEW snake
       const newFruitCoord = generatefruitcoords(newSnake);
@@ -106,7 +108,7 @@ function GameBoard() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const currentDir =
         directionQueueRef.current.length > 0
-          ? directionQueueRef.current[directionQueueRef.current.length - 1]
+          ? directionQueueRef.current[0]
           : directionRef.current;
 
       let newDirection: string | null = null;
@@ -130,28 +132,6 @@ function GameBoard() {
       if (newDirection && directionQueueRef.current.length < 2) {
         directionQueueRef.current.push(newDirection);
       }
-      // switch (e.key) {
-      //   case "ArrowUp":
-      //     if (directionRef.current !== "down") {
-      //       setDirection("up");
-      //     }
-      //     break;
-      //   case "ArrowDown":
-      //     if (directionRef.current !== "up") {
-      //       setDirection("down");
-      //     }
-      //     break;
-      //   case "ArrowLeft":
-      //     if (directionRef.current !== "right") {
-      //       setDirection("left");
-      //     }
-      //     break;
-      //   case "ArrowRight":
-      //     if (directionRef.current !== "left") {
-      //       setDirection("right");
-      //     }
-      //     break;
-      // }
     };
 
     intervalRef.current = setInterval(() => {
@@ -187,12 +167,12 @@ function GameBoard() {
         {gameOver && (
           <div className="gameover-overlay">
             <h1 className="gameover-title">game over</h1>
-            <p className="gameover-score">score:{score}</p>
+            <p className="gameover-score">score:{score.score}</p>
             <button
               className="gameover-button"
               onClick={() => {
                 setGameOver(false);
-                setScore(0);
+                setScore((prev) => ({ ...prev, score: 0 }));
                 setSnake([
                   [10, 10],
                   [10, 11],
